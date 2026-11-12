@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Сорока ТВ — Барабан</title>
+<style>
+  :root {
+    --bg-main: #1F2430;
+    --text-light: #FFFDF9;
+    --accent-orange: #C4521F;
+    --accent-orange-light: #F2A07A;
+    --accent-blue: #2A5DB8;
+    --accent-green: #2E7D5B;
+    --panel-bg: #F6F3EE;
+    --panel-card: #FFFDF9;
+    --slot-bg: #EAE5D9;
+    --slot-border: #8B4019;
+    --text-dark: #1A1C23;
+    
+    --font-main: system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-light);
+    font-family: var(--font-main);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  button {
+    font-family: inherit; cursor: pointer; border: none; outline: none;
+    transition: transform 0.1s, opacity 0.2s, background 0.2s;
+    min-height: 56px; font-size: 20px; border-radius: 12px; font-weight: 600;
+  }
+  button:active { transform: scale(0.95); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Header */
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px; flex-shrink: 0; z-index: 10;
+  }
+  .logo { font-size: 24px; font-weight: bold; color: var(--accent-orange-light); }
+  .header-btns { display: flex; gap: 10px; }
+  .icon-btn {
+    background: rgba(255,255,255,0.1); color: white; width: 56px; height: 56px;
+    border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.2); }
+
+  /* Mascot Area */
+  .mascot-area {
+    display: flex; align-items: center; gap: 15px; padding: 0 20px 10px; flex-shrink: 0; max-width: 800px; margin: 0 auto; width: 100%;
+  }
+  .mascot-svg { width: 80px; height: 80px; flex-shrink: 0; }
+  .bubble {
+    background: var(--text-light); color: var(--text-dark); padding: 15px 20px;
+    border-radius: 20px; border-bottom-left-radius: 4px; font-size: 20px; font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-grow: 1;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Main Views */
+  main {
+    flex-grow: 1; position: relative; overflow-y: auto; overflow-x: hidden;
+    padding: 10px 20px 120px; /* padding-bottom for fixed footer */
+    display: flex; justify-content: center;
+  }
+  .step-view {
+    display: none; width: 100%; max-width: 800px; flex-direction: column; align-items: center;
+    animation: fadeIn 0.4s ease;
+  }
+  .step-view.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Step 1: Slot Machine */
+  .slot-machine-wrapper {
+    background: var(--accent-orange); border: 8px solid var(--slot-border);
+    border-radius: 20px; padding: 20px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    margin-bottom: 20px; width: 100%;
+  }
+  .lights { position: absolute; inset: -4px; border-radius: 16px; border: 4px dashed #FFD700; opacity: 0.5; pointer-events: none; }
+  .lights.active { animation: rotateLights 2s linear infinite; opacity: 1; }
+  .lights.flash { animation: flashLights 0.5s ease 3; opacity: 1; border-style: solid; border-color: #FFF; }
+  @keyframes rotateLights { 100% { transform: rotate(1deg); } }
+  @keyframes flashLights { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  .reels-container {
+    display: flex; gap: 10px; background: var(--bg-main); padding: 10px; border-radius: 12px;
+    justify-content: space-between; overflow: hidden; position: relative;
+  }
+  .reel-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .lock-btn {
+    background: var(--panel-bg); color: var(--text-dark); width: 56px; height: 56px;
+    border-radius: 50%; font-size: 24px; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.1);
+  }
+  .lock-btn.locked { background: #E0DCD3; opacity: 0.8; }
+  .lock-btn.locked .icon { display: inline-block; animation: shake 0.3s; }
+  
+  .reel-window {
+    background: var(--slot-bg); width: 100%; height: 120px; border-radius: 8px;
+    overflow: hidden; position: relative; box-shadow: inset 0 4px 10px rgba(0,0,0,0.2);
+  }
+  /* Target frame inside reel */
+  .reel-window::after {
+    content: '▶ \A0\A0\A0\A0 ◀'; color: var(--accent-orange); font-size: 24px; font-weight: bold;
+    position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
+    display: flex; justify-content: space-between; padding: 0 5px; pointer-events: none;
+    border-top: 2px solid var(--accent-orange); border-bottom: 2px solid var(--accent-orange); height: 40px; align-items: center;
+  }
+
+  .reel-strip {
+    display: flex; flex-direction: column; width: 100%; transition: transform cubic-bezier(0.2, 0.8, 0.2, 1.1);
+  }
+  .reel-strip.blur { filter: blur(2px); }
+  .reel-item {
+    height: 40px; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: var(--text-dark); font-weight: bold; text-align: center; padding: 0 5px; white-space: nowrap;
+  }
+
+  .spin-btn {
+    background: linear-gradient(180deg, #FFD700, #F2A07A); color: var(--slot-border);
+    font-size: 28px; width: 100%; padding: 15px; margin-top: 15px; border-radius: 12px;
+    box-shadow: 0 6px 0 var(--slot-border);
+  }
+  .spin-btn:active { transform: translateY(6px); box-shadow: 0 0 0 var(--slot-border); }
+  
+  .news-banner {
+    background: var(--accent-orange); padding: 20px; border-radius: 12px; text-align: center;
+    width: 100%; transform: translateY(50px); opacity: 0; pointer-events: none; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    margin-top: 20px; display: none;
+  }
+  .news-banner.show { transform: translateY(0); opacity: 1; pointer-events: auto; display: block; }
+  .news-banner h2 { margin-bottom: 10px; font-size: 16px; letter-spacing: 2px; color: #FFF; }
+  .news-banner p { font-size: 26px; font-weight: bold; line-height: 1.3; margin-bottom: 20px; }
+  .banner-actions { display: flex; gap: 10px; justify-content: center; }
+  .banner-actions button { padding: 10px 20px; font-size: 18px; }
+  .btn-primary { background: var(--text-light); color: var(--accent-orange); }
+  .btn-secondary { background: transparent; border: 2px solid var(--text-light); color: var(--text-light); }
+
+  /* Step 2: Position */
+  .news-reminder { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 12px; font-size: 22px; text-align: center; margin-bottom: 30px; width: 100%; }
+  .pos-buttons { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 400px; }
+  .pos-btn { padding: 20px; font-size: 24px; background: rgba(255,255,255,0.1); color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .pos-btn:hover, .pos-btn.selected { background: var(--accent-orange); }
+  .think-more { margin-top: 15px; text-align: center; display: none; animation: fadeIn 0.3s; }
+  .think-more p { margin-bottom: 15px; font-size: 18px; color: var(--accent-orange-light); }
+  .think-actions { display: flex; gap: 10px; justify-content: center; }
+  
+  /* Step 3: Constructor */
+  .constructor-area { width: 100%; display: flex; flex-direction: column; gap: 15px; padding-bottom: 20px; }
+  .c-card { background: var(--panel-card); border-radius: 16px; padding: 20px; color: var(--text-dark); position: relative; opacity: 0.6; transition: 0.3s; }
+  .c-card.active { opacity: 1; box-shadow: 0 0 0 4px rgba(255,255,255,0.3); transform: scale(1.02); }
+  .card-thought .c-title { color: var(--accent-orange); }
+  .card-reason .c-title { color: var(--accent-blue); }
+  .card-example .c-title { color: var(--accent-green); }
+  
+  .c-title { font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+  .chip { padding: 10px 15px; background: #EAE5D9; border-radius: 20px; font-size: 16px; cursor: pointer; transition: 0.2s; }
+  .chip.selected { background: var(--accent-orange); color: white; }
+  .card-reason .chip.selected { background: var(--accent-blue); }
+  .card-example .chip.selected { background: var(--accent-green); }
+  
+  .c-input { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #EAE5D9; border-radius: 12px; font-family: var(--font-main); outline: none; margin-bottom: 10px; }
+  .c-input:focus { border-color: var(--accent-orange); }
+  .c-hint-btn { background: transparent; color: var(--accent-orange); font-size: 16px; display: flex; align-items: center; gap: 5px; padding: 0; min-height: auto; }
+  .c-hint-text { margin-top: 10px; font-size: 16px; color: var(--accent-blue); display: none; background: rgba(42,93,184,0.1); padding: 10px; border-radius: 8px; }
+  
+  .next-btn-container { text-align: center; margin-top: 20px; width: 100%; }
+  .next-btn { background: var(--accent-orange); color: white; padding: 15px 40px; font-size: 22px; width: 100%; max-width: 400px; }
+
+  /* Step 4: Prompter */
+  .prompter { width: 100%; max-width: 800px; text-align: left; background: rgba(0,0,0,0.3); padding: 30px; border-radius: 20px; margin-bottom: 20px; }
+  .p-line { font-size: 32px; font-weight: bold; margin-bottom: 20px; opacity: 0.3; transition: 0.4s; display: flex; gap: 15px; align-items: flex-start; }
+  .p-line.highlight { opacity: 1; transform: scale(1.05); transform-origin: left; }
+  .p-icon { flex-shrink: 0; }
+  .p-line-thought .p-icon { color: var(--accent-orange); }
+  .p-line-reason .p-icon { color: var(--accent-blue); }
+  .p-line-example .p-icon { color: var(--accent-green); }
+  
+  .prompter-actions { display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%; }
+  .rehearse-btn { background: var(--accent-green); color: white; font-size: 24px; padding: 15px 40px; width: 100%; max-width: 400px; }
+  .secondary-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .secondary-actions button { background: rgba(255,255,255,0.1); color: white; font-size: 16px; padding: 10px 20px; }
+  .post-action { font-size: 18px; color: var(--accent-orange-light); text-align: center; margin-top: 20px; display: none; }
+
+  /* Footer Cheat Sheet */
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel-bg); color: var(--text-dark);
+    padding: 15px 20px; box-shadow: 0 -4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease;
+    z-index: 100; display: none;
+  }
+  footer.show { display: block; }
+  footer.collapsed { transform: translateY(calc(100% - 40px)); }
+  .f-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; cursor: pointer; }
+  .f-title { font-weight: bold; color: var(--accent-orange); font-size: 18px; }
+  .f-formula { font-size: 14px; text-align: center; margin-bottom: 15px; font-weight: bold; color: var(--text-muted); }
+  .f-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+  .f-card { background: var(--panel-card); padding: 15px; border-radius: 12px; border-top: 6px solid #ccc; position: relative; transition: 0.3s; }
+  .f-card.hl-thought { border-color: var(--accent-orange); }
+  .f-card.hl-reason { border-color: var(--accent-blue); }
+  .f-card.hl-example { border-color: var(--accent-green); }
+  .f-card.active-hint { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .f-chip { display: block; margin: 5px 0; font-size: 14px; cursor: pointer; color: var(--text-dark); text-decoration: underline; text-decoration-color: transparent; transition: 0.2s; }
+  .f-chip:hover { text-decoration-color: currentColor; }
+  .f-bottom-note { text-align: center; font-size: 12px; margin-top: 15px; color: #666; }
+  .toggle-footer-btn { background: transparent; color: var(--text-dark); min-height: auto; font-size: 16px; padding: 5px; }
+
+  /* Utilities & FX */
+  .confetti { position: absolute; width: 10px; height: 10px; z-index: 1000; animation: fall 1.5s linear forwards; }
+  @keyframes fall { to { transform: translateY(100vh) rotate(360deg); opacity: 0; } }
+  @keyframes shake { 0%, 100% {transform: rotate(0deg);} 25% {transform: rotate(-15deg);} 75% {transform: rotate(15deg);} }
+
+  /* Accessibility / Reduced Motion */
+  @media (prefers-reduced-motion: reduce) {
+    .reel-strip { transition-duration: 0.1s !important; filter: none !important; }
+    .lights.active { animation: none; opacity: 1; }
+    .confetti { display: none; }
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+  
+  /* Mobile adjustments */
+  @media (max-width: 600px) {
+    .reel-item { font-size: 16px; }
+    .f-cards { grid-template-columns: 1fr; gap: 5px; }
+    .f-card { padding: 10px; }
+    .prompter { padding: 15px; }
+    .p-line { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- AUDIO (Web Audio API) - No external files -->
+  <script>
+    const audio = {
+      ctx: null,
+      muted: true,
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      },
+      playTick() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.05);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.05);
+      },
+      playBell() {
+        if (this.muted || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1);
+        osc.start(); osc.stop(this.ctx.currentTime + 1);
+      },
+      playTada() {
+        if (this.muted || !this.ctx) return;
+        [400, 500, 600].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.type = 'triangle'; osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5 + i * 0.1);
+          osc.start(this.ctx.currentTime + i * 0.1); osc.stop(this.ctx.currentTime + 1.5 + i * 0.1);
+        });
+      }
+    };
+    function toggleMute() {
+      audio.init();
+      audio.muted = !audio.muted;
+      document.getElementById('muteBtn').innerText = audio.muted ? '🔇' : '🔊';
+    }
+  </script>
+
+  <header>
+    <div class="logo">📺 Сорока ТВ</div>
+    <div class="header-btns">
+      <button class="icon-btn" onclick="app.resetAll()" title="Почати спочатку">🔄</button>
+      <button class="icon-btn" id="muteBtn" onclick="toggleMute()" title="Звук">🔇</button>
+    </div>
+  </header>
+
+  <div class="mascot-area">
+    <svg class="mascot-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="45" fill="#EAE5D9"/>
+      <ellipse cx="50" cy="55" rx="35" ry="40" fill="#1A1C23"/>
+      <circle cx="50" cy="35" r="25" fill="#FFF"/>
+      <circle cx="40" cy="30" r="4" fill="#1A1C23" class="eye"/>
+      <circle cx="60" cy="30" r="4" fill="#1A1C23" class="eye"/>
+      <polygon points="45,35 55,35 50,45" fill="#F2A07A"/>
+      <path d="M 15 60 Q 5 40 25 50" fill="none" stroke="#1A1C23" stroke-width="6" stroke-linecap="round" class="wing"/>
+    </svg>
+    <div class="bubble" id="bubble-text">Крути барабан — вигадаємо новину, якої ще не було!</div>
+  </div>
+
+  <main>
+    <!-- STEP 1 -->
+    <section id="step1" class="step-view active">
+      <div class="slot-machine-wrapper">
+        <div class="lights" id="slot-lights"></div>
+        <div class="reels-container">
+          <div class="reel-col">
+            <button class="lock-btn" id="lock0" onclick="app.toggleLock(0)"><span class="icon">🔓</span></button>
+            <div class="reel-window"><div class="reel-strip" id="reel0"></div></div>
+          </div>
+          <div class="reel-col">
+            <button class="lock-btn" id="lock1" onclick="app.toggleLock(1)"><span class="icon">🔓</span></button>
+            <div class="reel-window"><div class="reel-strip" id="reel1"></div></div>
+          </div>
+          <div class="reel-col">
+            <button class="lock-btn" id="lock2" onclick="app.toggleLock(2)"><span class="icon">🔓</span></button>
+            <div class="reel-window"><div class="reel-strip" id="reel2"></div></div>
+          </div>
+        </div>
+        <button class="spin-btn" id="spin-btn" onclick="app.spin()">🎰 Крути!</button>
+      </div>
+      
+      <div class="news-banner" id="news-banner">
+        <h2>ТЕРМІНОВА НОВИНА</h2>
+        <p id="generated-news"></p>
+        <div class="banner-actions">
+          <button class="btn-primary" onclick="app.goToStep(2)">Лишаю ✓</button>
+          <button class="btn-secondary" onclick="app.resetSlot()">Крутити ще 🔄</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section id="step2" class="step-view">
+      <div class="news-reminder" id="reminder-2"></div>
+      <div class="pos-buttons">
+        <button class="pos-btn" onclick="app.setPosition('за')">👍 Я ЗА</button>
+        <button class="pos-btn" onclick="app.setPosition('проти')">👎 Я ПРОТИ</button>
+        <button class="pos-btn" onclick="app.showThinkMore()" id="btn-think">🤔 Ще думаю</button>
+      </div>
+      <div class="think-more" id="think-more-area">
+        <p>Уяви, що це правда. Що в цьому було б найкращим? А що найгіршим?</p>
+        <div class="think-actions">
+          <button class="pos-btn" style="flex:1; font-size:18px" onclick="app.setPosition('за')">Це було б чудово</button>
+          <button class="pos-btn" style="flex:1; font-size:18px" onclick="app.setPosition('проти')">Це було б дивно</button>
+        </div>
+        <button class="pos-btn" style="width:100%; margin-top:10px; font-size:18px; background:transparent; border:2px solid white;" onclick="app.setPosition('важко вирішити')">Мені важко вирішити</button>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section id="step3" class="step-view">
+      <div class="constructor-area">
+        <!-- Thought -->
+        <div class="c-card card-thought active" id="card-thought" onclick="app.activateCard('thought')">
+          <div class="c-title">💡 Що я думаю про цю новину?</div>
+          <div class="chips">
+            <div class="chip" onclick="app.setChip('thought', 'Я думаю, що…')">Я думаю, що…</div>
+            <div class="chip" onclick="app.setChip('thought', 'Як на мене…')">Як на мене…</div>
+            <div class="chip" onclick="app.setChip('thought', 'Мені здається, що…')">Мені здається, що…</div>
+          </div>
+          <input type="text" class="c-input" id="input-thought" placeholder="Напиши кілька слів — решту скажеш голосом (до 8 слів)" maxlength="60" oninput="app.checkForm()">
+          <button class="c-hint-btn" onclick="app.showCardHint('thought', event)">💡 Підкажи ідею</button>
+          <div class="c-hint-text" id="hint-thought"></div>
+        </div>
+        <!-- Reason -->
+        <div class="c-card card-reason" id="card-reason" onclick="app.activateCard('reason')">
+          <div class="c-title">🔑 Чому я так думаю?</div>
+          <div class="chips">
+            <div class="chip" onclick="app.setChip('reason', '…бо…')">…бо…</div>
+            <div class="chip" onclick="app.setChip('reason', '…тому що…')">…тому що…</div>
+            <div class="chip" onclick="app.setChip('reason', 'Адже…')">Адже…</div>
+          </div>
+          <input type="text" class="c-input" id="input-reason" placeholder="Кілька слів..." maxlength="60" oninput="app.checkForm()" disabled>
+          <button class="c-hint-btn" onclick="app.showCardHint('reason', event)">💡 Підкажи ідею</button>
+          <div class="c-hint-text" id="hint-reason"></div>
+        </div>
+        <!-- Example -->
+        <div class="c-card card-example" id="card-example" onclick="app.activateCard('example')">
+          <div class="c-title">📸 Як це буває в житті? Згадай випадок! <span style="font-size: 14px; font-weight: normal; color: var(--text-dark);">(Приклад робить думку яскравою)</span></div>
+          <div class="chips">
+            <div class="chip" onclick="app.setChip('example', 'Наприклад…')">Наприклад…</div>
+            <div class="chip" onclick="app.setChip('example', 'От у мене…')">От у мене…</div>
+            <div class="chip" onclick="app.setChip('example', 'Одного разу…')">Одного разу…</div>
+          </div>
+          <input type="text" class="c-input" id="input-example" placeholder="Кілька слів..." maxlength="60" oninput="app.checkForm()" disabled>
+          <button class="c-hint-btn" onclick="app.showCardHint('example', event)">💡 Підкажи ідею</button>
+          <div class="c-hint-text" id="hint-example"></div>
+        </div>
+      </div>
+      <div class="next-btn-container">
+        <button class="next-btn" id="btn-to-prompter" onclick="app.tryGoToPrompter()" disabled>Далі → до суфлера</button>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section id="step4" class="step-view">
+      <div class="news-reminder" id="reminder-4" style="font-size:18px;"></div>
+      <div class="prompter" id="prompter-box">
+        <div class="p-line p-line-thought" id="p-thought"><span class="p-icon">💡</span> <span class="p-text"></span></div>
+        <div class="p-line p-line-reason" id="p-reason"><span class="p-icon">🔑</span> <span class="p-text"></span></div>
+        <div class="p-line p-line-example" id="p-example" style="display:none;"><span class="p-icon">📸</span> <span class="p-text"></span></div>
+      </div>
+      <div class="prompter-actions">
+        <button class="rehearse-btn" id="btn-rehearse" onclick="app.rehearseNext()">▶ Репетиція</button>
+        <div class="post-action" id="post-rehearsal">
+          Готово! Тепер скажи все вголос — студія слухає.<br><br>
+          <span style="font-size: 14px; color: var(--text-light);">Підказка: Після твого ефіру ведучий запитає: «Хто за? Хто проти? Хто хоче відповісти?»</span>
+        </div>
+        <div class="secondary-actions" style="margin-top:20px;">
+          <button onclick="app.goToStep(3)">Змінити коментар</button>
+          <button onclick="app.resetAll()">Ще одна новина 🎰</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CHEAT SHEET FOOTER -->
+  <footer id="footer-hints">
+    <div class="f-header" onclick="app.toggleFooter()">
+      <div class="f-title">Шпаргалка коментатора</div>
+      <button class="toggle-footer-btn" id="f-toggle">▼</button>
+    </div>
+    <div class="f-content" id="f-content">
+      <div class="f-formula">1 Що я думаю? → 2 Чому? → 3 Як це буває в житті? (Три речення — це приблизно 30 секунд)</div>
+      <div class="f-cards">
+        <div class="f-card hl-thought" id="fc-thought">
+          <div style="font-weight:bold; margin-bottom:5px;">💡 Думаю</div>
+          <span class="f-chip" onclick="app.useFooterChip('thought', 'Я думаю, що…')">«Я думаю, що…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('thought', 'Як на мене…')">«Як на мене…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('thought', 'Я за / проти…')">«Я за / проти…»</span>
+        </div>
+        <div class="f-card hl-reason" id="fc-reason">
+          <div style="font-weight:bold; margin-bottom:5px;">🔑 Бо</div>
+          <span class="f-chip" onclick="app.useFooterChip('reason', '…бо…')">«…бо…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('reason', '…тому що…')">«…тому що…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('reason', 'Адже…')">«Адже…»</span>
+        </div>
+        <div class="f-card hl-example" id="fc-example">
+          <div style="font-weight:bold; margin-bottom:5px;">📸 Наприклад</div>
+          <span class="f-chip" onclick="app.useFooterChip('example', 'Наприклад…')">«Наприклад…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('example', 'От у мене…')">«От у мене…»</span>
+          <span class="f-chip" onclick="app.useFooterChip('example', 'Одного разу…')">«Одного разу…»</span>
+        </div>
+      </div>
+      <div class="f-bottom-note">Не згоден? «Я думаю інакше, бо…» · Треба подумати? «Дайте мені кілька секунд»</div>
+    </div>
+  </footer>
+
+<script>
+// Data Setup
+const DATA = [
+  [
+    "У нашій школі", "У кожному класі", "У нашому місті", 
+    "У кожному дворі", "У кожній родині", "У кожному магазині", "У кожному автобусі"
+  ],
+  [
+    "усі їдять морозиво", "усі лягають поспати", "усі розмовляють лише віршами", 
+    "усі їздять на роликах", "усі приходять зі своїми улюбленцями", 
+    "усі ходять у костюмах супергероїв", "усі говорять лише пошепки", 
+    "усі співають замість розмов", "усі ходять у різних шкарпетках"
+  ],
+  [
+    "щоп'ятниці", "під час дощу", "у день народження", 
+    "на кожній перерві", "тільки взимку", "щоранку", "тільки по понеділках"
+  ]
+];
+
+const HINTS = {
+  thought: ["Скажи одним реченням, що ти про це думаєш.", "Тобі подобається ця ідея чи ні?", "Уяви, що це вже сталося. Яка твоя реакція?"],
+  reason: ["Подумай: це зручно? безпечно? весело? чесно? корисно?", "Що зміниться через цю новину?", "Чому хтось може зрадіти (або засмутитися)?"],
+  example: ["Згадай: де ти бачив щось схоже?", "Що було б у твоєму класі?", "Що зробили б друзі чи родина в такій ситуації?"]
+};
+
+const BUBBLES = [
+  "", // step 0 (padding)
+  "Крути барабан — вигадаємо новину, якої ще не було!",
+  "А ти що про це думаєш? Обери свою сторону.",
+  "Збери думку з трьох частин. Підказки внизу допоможуть!",
+  "Готово до ефіру! Прочитай голосом, коли ведучий запросить."
+];
+
+const ITEM_HEIGHT = 40;
+const REPEATS = 5; // to create long spin effect
+
+const app = {
+  state: {
+    step: 1,
+    locked: [false, false, false],
+    indices: [0, 0, 0], // actual winning index
+    news: "",
+    position: "",
+    form: {
+      thought: { chip: "", text: "", hintIdx: 0 },
+      reason: { chip: "", text: "", hintIdx: 0 },
+      example: { chip: "", text: "", hintIdx: 0 }
+    },
+    activeCard: 'thought',
+    rehearseStep: 0,
+    isSpinning: false,
+    isFooterCollapsed: false
+  },
+
+  init() {
+    this.buildReels();
+    this.goToStep(1);
+    
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && this.state.step === 1 && !this.state.isSpinning && document.activeElement.tagName !== 'BUTTON') {
+        e.preventDefault();
+        document.getElementById('spin-btn').click();
+      }
+    });
+  },
+
+  buildReels() {
+    for (let i = 0; i < 3; i++) {
+      const container = document.getElementById(`reel${i}`);
+      container.innerHTML = '';
+      // Create repeated list for spinning effect
+      for(let r = 0; r < REPEATS; r++) {
+        DATA[i].forEach(text => {
+          const div = document.createElement('div');
+          div.className = 'reel-item';
+          div.innerText = text;
+          container.appendChild(div);
+        });
+      }
+      this.state.indices[i] = Math.floor(Math.random() * DATA[i].length);
+      this.setReelPosition(i, this.state.indices[i], false);
+    }
+  },
+
+  toggleLock(col) {
+    if (this.state.isSpinning) return;
+    audio.init(); audio.playTick();
+    this.state.locked[col] = !this.state.locked[col];
+    const btn = document.getElementById(`lock${col}`);
+    btn.classList.toggle('locked', this.state.locked[col]);
+    btn.querySelector('.icon').innerText = this.state.locked[col] ? '🔒' : '🔓';
+  },
+
+  setReelPosition(col, dataIndex, smooth = false) {
+    const strip = document.getElementById(`reel${col}`);
+    const offset = dataIndex * ITEM_HEIGHT;
+    // We position it at the 3rd repetition block so we can spin down to it next time
+    const baseOffset = (3 * DATA[col].length * ITEM_HEIGHT);
+    const finalOffset = baseOffset + offset;
+    
+    strip.style.transition = smooth ? 'transform cubic-bezier(0.2, 0.8, 0.2, 1.1)' : 'none';
+    strip.style.transform = `translateY(-${finalOffset}px)`;
+  },
+
+  spin() {
+    if (this.state.isSpinning) return;
+    audio.init();
+    this.state.isSpinning = true;
+    document.getElementById('news-banner').classList.remove('show');
+    document.getElementById('slot-lights').classList.add('active');
+    document.getElementById('slot-lights').classList.remove('flash');
+
+    const delays = [1300, 2000, 2700];
+    let tickInterval = setInterval(() => audio.playTick(), 100);
+
+    for (let i = 0; i < 3; i++) {
+      if (this.state.locked[i]) {
+        // Just wiggle it a bit
+        setTimeout(() => this.stopReel(i, this.state.indices[i]), delays[i] / 2);
+        continue;
+      }
+      
+      const strip = document.getElementById(`reel${i}`);
+      // Jump to start of 1st repetition block for long visual spin
+      strip.style.transition = 'none';
+      const currentMod = this.state.indices[i];
+      strip.style.transform = `translateY(-${currentMod * ITEM_HEIGHT}px)`;
+      strip.classList.add('blur');
+      
+      // Calculate new target
+      this.state.indices[i] = Math.floor(Math.random() * DATA[i].length);
+      
+      setTimeout(() => {
+        // Trigger reflow
+        strip.offsetHeight; 
+        strip.style.transitionDuration = `${delays[i]}ms`;
+        this.stopReel(i, this.state.indices[i]);
+      }, 50);
+    }
+
+    setTimeout(() => {
+      clearInterval(tickInterval);
+      this.finishSpin();
+    }, 2800);
+  },
+
+  stopReel(col, targetIndex) {
+    const strip = document.getElementById(`reel${col}`);
+    strip.classList.remove('blur');
+    this.setReelPosition(col, targetIndex, true);
+    setTimeout(() => audio.playBell(), 200); // sound when it lands
+  },
+
+  finishSpin() {
+    this.state.isSpinning = false;
+    document.getElementById('slot-lights').classList.remove('active');
+    document.getElementById('slot-lights').classList.add('flash');
+    audio.playTada();
+    this.createConfetti();
+
+    const w = DATA[0][this.state.indices[0]];
+    const wht = DATA[1][this.state.indices[1]];
+    const whn = DATA[2][this.state.indices[2]];
+    this.state.news = `${w} ${wht} ${whn}.`;
+    
+    // Typewriter effect
+    const banner = document.getElementById('news-banner');
+    const p = document.getElementById('generated-news');
+    p.innerText = '';
+    banner.classList.add('show');
+    
+    let charIdx = 0;
+    const typeInt = setInterval(() => {
+      if(charIdx < this.state.news.length) {
+        p.innerText += this.state.news[charIdx];
+        charIdx++;
+      } else {
+        clearInterval(typeInt);
+      }
+    }, 30);
+  },
+
+  resetSlot() {
+    document.getElementById('news-banner').classList.remove('show');
+  },
+
+  createConfetti() {
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    for(let i=0; i<30; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.top = '-10px';
+      c.style.backgroundColor = ['#C4521F', '#F2A07A', '#FFD700', '#FFFDF9'][Math.floor(Math.random()*4)];
+      c.style.animationDuration = (1 + Math.random()) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 2500);
+    }
+  },
+
+  goToStep(num) {
+    document.querySelectorAll('.step-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`step${num}`).classList.add('active');
+    document.getElementById('bubble-text').innerText = BUBBLES[num];
+    this.state.step = num;
+
+    const footer = document.getElementById('footer-hints');
+    if (num >= 2) {
+      footer.classList.add('show');
+    } else {
+      footer.classList.remove('show');
+    }
+
+    if (num === 2) {
+      document.getElementById('reminder-2').innerText = `📰 ${this.state.news}`;
+      document.getElementById('think-more-area').style.display = 'none';
+      document.getElementById('btn-think').style.display = 'flex';
+    } else if (num === 3) {
+      this.activateCard('thought');
+      this.checkForm();
+    } else if (num === 4) {
+      this.setupPrompter();
+    }
+  },
+
+  showThinkMore() {
+    document.getElementById('btn-think').style.display = 'none';
+    document.getElementById('think-more-area').style.display = 'block';
+  },
+
+  setPosition(pos) {
+    this.state.position = pos;
+    this.goToStep(3);
+  },
+
+  activateCard(type) {
+    if(type !== 'thought' && !this.state.form.thought.chip && !this.state.form.thought.text) return; // Prevent skip
+    if(type === 'example' && !this.state.form.reason.chip && !this.state.form.reason.text) return;
+
+    this.state.activeCard = type;
+    ['thought', 'reason', 'example'].forEach(k => {
+      document.getElementById(`card-${k}`).classList.toggle('active', k === type);
+      document.getElementById(`input-${k}`).disabled = (k !== type && !this.state.form[k].chip);
+      // Footer highlight
+      document.getElementById(`fc-${k}`).classList.toggle('active-hint', k === type);
+    });
+    document.getElementById(`input-${type}`).disabled = false;
+    document.getElementById(`input-${type}`).focus();
+  },
+
+  setChip(type, text) {
+    this.state.form[type].chip = text;
+    const chips = document.querySelectorAll(`#card-${type} .chip`);
+    chips.forEach(c => c.classList.toggle('selected', c.innerText === text));
+    this.checkForm();
+  },
+
+  useFooterChip(type, text) {
+    if (this.state.activeCard !== type) {
+      this.activateCard(type);
+    }
+    this.setChip(type, text);
+    if(this.state.isFooterCollapsed) this.toggleFooter();
+  },
+
+  showCardHint(type, e) {
+    e.stopPropagation();
+    const arr = HINTS[type];
+    let idx = this.state.form[type].hintIdx;
+    const el = document.getElementById(`hint-${type}`);
+    el.innerText = arr[idx];
+    el.style.display = 'block';
+    this.state.form[type].hintIdx = (idx + 1) % arr.length;
+  },
+
+  checkForm() {
+    const t = this.state.form.thought.chip || document.getElementById('input-thought').value.trim();
+    const r = this.state.form.reason.chip || document.getElementById('input-reason').value.trim();
+    const btn = document.getElementById('btn-to-prompter');
+    
+    // Auto-unlock next
+    if (t) document.getElementById('input-reason').disabled = false;
+    if (t && r) document.getElementById('input-example').disabled = false;
+
+    if (t && r) {
+      btn.disabled = false;
+    } else {
+      btn.disabled = true;
+    }
+  },
+
+  tryGoToPrompter() {
+    ['thought', 'reason', 'example'].forEach(k => {
+      this.state.form[k].text = document.getElementById(`input-${k}`).value.trim();
+    });
+
+    if (!this.state.form.example.chip && !this.state.form.example.text) {
+      if(confirm('Хочеш додати приклад? З ним твоя думка буде яскравішою.\nОК = додам, Скасувати = йдемо далі')) {
+        this.activateCard('example');
+        return;
+      }
+    }
+    this.goToStep(4);
+  },
+
+  setupPrompter() {
+    document.getElementById('reminder-4').innerText = `📰 ${this.state.news}`;
+    
+    const fill = (type, elId) => {
+      const el = document.getElementById(elId);
+      const text = `${this.state.form[type].chip} ${this.state.form[type].text}`.trim();
+      if(text) {
+        el.querySelector('.p-text').innerText = text;
+        el.style.display = 'flex';
+        el.classList.remove('highlight');
+      } else {
+        el.style.display = 'none';
+      }
+    };
+    
+    fill('thought', 'p-thought');
+    fill('reason', 'p-reason');
+    fill('example', 'p-example');
+
+    this.state.rehearseStep = 0;
+    document.getElementById('btn-rehearse').innerText = '▶ Репетиція';
+    document.getElementById('btn-rehearse').style.display = 'block';
+    document.getElementById('post-rehearsal').style.display = 'none';
+  },
+
+  rehearseNext() {
+    const lines = [
+      document.getElementById('p-thought'),
+      document.getElementById('p-reason'),
+      document.getElementById('p-example')
+    ].filter(el => el.style.display !== 'none');
+
+    // Reset highlights
+    lines.forEach(l => l.classList.remove('highlight'));
+
+    if (this.state.rehearseStep < lines.length) {
+      lines[this.state.rehearseStep].classList.add('highlight');
+      this.state.rehearseStep++;
+      document.getElementById('btn-rehearse').innerText = 'Далі ▶';
+      audio.playTick();
+    } else {
+      document.getElementById('btn-rehearse').style.display = 'none';
+      document.getElementById('post-rehearsal').style.display = 'block';
+      audio.playTada();
+    }
+  },
+
+  toggleFooter() {
+    const f = document.getElementById('footer-hints');
+    const btn = document.getElementById('f-toggle');
+    this.state.isFooterCollapsed = !this.state.isFooterCollapsed;
+    f.classList.toggle('collapsed', this.state.isFooterCollapsed);
+    btn.innerText = this.state.isFooterCollapsed ? '▲' : '▼';
+  },
+
+  resetAll() {
+    if(confirm("Почати з самого початку?")) {
+      window.location.reload();
+    }
+  }
+};
+
+window.onload = () => {
+  app.init();
+};
+
+</script>
+</body>
+</html>
